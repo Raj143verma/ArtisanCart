@@ -113,6 +113,11 @@ const productSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    hasVariants: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     metadata: {
       type: Object,
       default: {},

@@ -1,9 +1,11 @@
 import express from 'express';
 import * as controller from '../controllers/product.controller.js';
+import * as variantController from '../controllers/productVariant.controller.js';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth/authMiddleware.js';
 import { roleMiddleware } from '../middleware/auth/roleMiddleware.js';
 import { validateRequest, validateQuery } from '../validators/validator.js';
 import { createProductSchema, updateProductSchema, listProductQuerySchema } from '../validators/product.validator.js';
+import { createVariantSchema, updateVariantSchema } from '../validators/productVariant.validator.js';
 import { singleUpload, multipleUpload } from '../middleware/upload/uploadMiddleware.js';
 import { Roles } from '../constants/roles.js';
 
@@ -13,6 +15,8 @@ const router = express.Router();
 router.get('/', validateQuery(listProductQuerySchema), controller.listProducts);
 router.get('/:id', optionalAuthMiddleware, controller.getProduct);
 router.get('/:id/images', optionalAuthMiddleware, controller.listProductImages);
+router.get('/:id/variants', optionalAuthMiddleware, variantController.listVariants);
+router.get('/:id/variants/:variantId', optionalAuthMiddleware, variantController.getVariant);
 
 // Protected Routes (requires authenticated user)
 router.use(authMiddleware);
@@ -34,5 +38,12 @@ router.post('/:id/images', multipleUpload('files', 10, 'products'), controller.u
 router.put('/:id/images/:imageId', singleUpload('file', 'products'), controller.replaceProductImage);
 router.delete('/:id/images/:imageId', controller.deleteProductImage);
 router.put('/:id/images/:imageId/thumbnail', controller.setProductThumbnail);
+
+// Variant Management Routes (Seller or Admin)
+router.post('/:id/variants', roleMiddleware(Roles.SELLER), validateRequest(createVariantSchema), variantController.createVariant);
+router.put('/:id/variants/:variantId', validateRequest(updateVariantSchema), variantController.updateVariant);
+router.delete('/:id/variants/:variantId', variantController.deleteVariant);
+router.post('/:id/variants/:variantId/restore', variantController.restoreVariant);
+router.put('/:id/variants/:variantId/active', variantController.toggleActiveVariant);
 
 export default router;

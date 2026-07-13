@@ -25,6 +25,24 @@ const productVariantSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    compareAtPrice: {
+      type: Number,
+      min: 0,
+    },
+    weight: {
+      type: Number,
+      min: 0,
+    },
+    dimensions: {
+      width: { type: Number, min: 0 },
+      height: { type: Number, min: 0 },
+      depth: { type: Number, min: 0 },
+      unit: { type: String, default: 'cm' },
+    },
+    thumbnail: {
+      public_id: String,
+      url: String,
+    },
     stockQuantity: {
       type: Number,
       default: 0,
@@ -33,6 +51,12 @@ const productVariantSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
     metadata: {
       type: Object,
