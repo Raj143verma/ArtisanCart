@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 
+const productImageSchema = new mongoose.Schema({
+  public_id: { type: String, required: true },
+  url: { type: String, required: true },
+  isThumbnail: { type: Boolean, default: false },
+  displayOrder: { type: Number, default: 0 },
+  metadata: {
+    width: Number,
+    height: Number,
+    bytes: Number,
+    format: String,
+  }
+});
+
 const productSchema = new mongoose.Schema(
   {
     store: {
@@ -45,12 +58,8 @@ const productSchema = new mongoose.Schema(
       uppercase: true,
       trim: true,
     },
-    thumbnailUrl: {
-      type: String,
-      default: '',
-    },
-    imageUrls: {
-      type: [String],
+    images: {
+      type: [productImageSchema],
       default: [],
     },
     stockQuantity: {
@@ -72,6 +81,36 @@ const productSchema = new mongoose.Schema(
     tags: {
       type: [String],
       default: [],
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ['draft', 'pending_review', 'published', 'rejected', 'archived', 'out_of_stock'],
+      default: 'draft',
+      index: true,
+    },
+    rejectionReason: {
+      type: String,
+      default: '',
+    },
+    seo: {
+      title: { type: String, max: 200, default: '' },
+      metaDescription: { type: String, max: 320, default: '' },
+      keywords: { type: [String], default: [] },
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
       index: true,
     },
     metadata: {

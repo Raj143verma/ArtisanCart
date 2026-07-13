@@ -45,3 +45,36 @@ export function singleUpload(fieldName = 'file', folder = '') {
     });
   };
 }
+
+export function multipleUpload(fieldName = 'files', maxCount = 10, folder = '') {
+  return (req, res, next) => {
+    const handler = upload.array(fieldName, maxCount);
+    handler(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          const message =
+            err.code === 'LIMIT_FILE_SIZE'
+              ? 'File size exceeds limit'
+              : err.message || 'Invalid file upload';
+          return res.status(400).json(createErrorResponse(message));
+        }
+        return res.status(400).json(createErrorResponse('File upload failed'));
+      }
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json(createErrorResponse('Files are required'));
+      }
+
+      // Expose folder target and basic files metadata for downstream handlers
+      req.mediaFiles = req.files.map((file) => ({
+        folder,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        buffer: file.buffer,
+      }));
+
+      next();
+    });
+  };
+}
