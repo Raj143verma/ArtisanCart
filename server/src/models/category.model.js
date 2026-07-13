@@ -1,41 +1,53 @@
 import mongoose from 'mongoose';
 
-const categorySchema = new mongoose.Schema(
+const CategorySchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      unique: true,
-      index: true,
+    name: { type: String, required: true, trim: true, maxlength: 200 },
+    slug: { type: String, required: true, trim: true, maxlength: 200 },
+    parent: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', default: null },
+    ancestors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
+    path: { type: String, trim: true, index: true },
+    depth: { type: Number, default: 0 },
+    description: { type: String, default: '' },
+    banner: {
+      public_id: { type: String },
+      url: { type: String },
     },
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-      index: true,
+    icon: {
+      public_id: { type: String },
+      url: { type: String },
     },
-    description: {
-      type: String,
-      default: '',
-      trim: true,
+    thumbnail: {
+      public_id: { type: String },
+      url: { type: String },
     },
-    parent: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
-      default: null,
-      index: true,
+    isFeatured: { type: Boolean, default: false, index: true },
+    isActive: { type: Boolean, default: true, index: true },
+    displayOrder: { type: Number, default: 0, index: true },
+    seo: {
+      title: { type: String, default: '' },
+      metaDescription: { type: String, default: '' },
+      keywords: [{ type: String }],
     },
-    metadata: {
-      type: Object,
-      default: {},
-    },
+    productCount: { type: Number, default: 0 },
+    viewCount: { type: Number, default: 0 },
+    deletedAt: { type: Date, default: null, index: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true }
 );
 
-export const Category = mongoose.model('Category', categorySchema);
+// enforce unique slug among siblings (parent + slug) for non-deleted docs
+CategorySchema.index({ parent: 1, slug: 1 }, { unique: true, partialFilterExpression: { deletedAt: null } });
+
+// text index for simple search
+CategorySchema.index({ name: 'text', description: 'text', 'seo.title': 'text', 'seo.metaDescription': 'text' });
+
+CategorySchema.methods.toJSON = function () {
+  const obj = this.toObject();
+  delete obj.__v;
+  return obj;
+};
+
+export const Category = mongoose.model('Category', CategorySchema);
