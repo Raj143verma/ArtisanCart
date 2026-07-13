@@ -1,0 +1,16 @@
+@use 'sass:color';
+
+$primary-color: #1d4ed8;
+$background: #f8fafc;
+
+:root {
+  color: #0f172a;
+  background: $background;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  background: $background;
+}
