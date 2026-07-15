@@ -1,11 +1,13 @@
 import express from 'express';
 import * as controller from '../controllers/product.controller.js';
 import * as variantController from '../controllers/productVariant.controller.js';
+import * as inventoryController from '../controllers/inventory.controller.js';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth/authMiddleware.js';
 import { roleMiddleware } from '../middleware/auth/roleMiddleware.js';
 import { validateRequest, validateQuery } from '../validators/validator.js';
 import { createProductSchema, updateProductSchema, listProductQuerySchema } from '../validators/product.validator.js';
 import { createVariantSchema, updateVariantSchema } from '../validators/productVariant.validator.js';
+import { adjustInventorySchema, restockInventorySchema, thresholdInventorySchema } from '../validators/inventory.validator.js';
 import { singleUpload, multipleUpload } from '../middleware/upload/uploadMiddleware.js';
 import { Roles } from '../constants/roles.js';
 
@@ -17,6 +19,7 @@ router.get('/:id', optionalAuthMiddleware, controller.getProduct);
 router.get('/:id/images', optionalAuthMiddleware, controller.listProductImages);
 router.get('/:id/variants', optionalAuthMiddleware, variantController.listVariants);
 router.get('/:id/variants/:variantId', optionalAuthMiddleware, variantController.getVariant);
+router.get('/:id/variants/:variantId/inventory', optionalAuthMiddleware, inventoryController.getInventory);
 
 // Protected Routes (requires authenticated user)
 router.use(authMiddleware);
@@ -45,5 +48,10 @@ router.put('/:id/variants/:variantId', validateRequest(updateVariantSchema), var
 router.delete('/:id/variants/:variantId', variantController.deleteVariant);
 router.post('/:id/variants/:variantId/restore', variantController.restoreVariant);
 router.put('/:id/variants/:variantId/active', variantController.toggleActiveVariant);
+
+// Inventory Management Routes (Seller or Admin)
+router.post('/:id/variants/:variantId/inventory/adjust', roleMiddleware(Roles.SELLER), validateRequest(adjustInventorySchema), inventoryController.adjustInventory);
+router.post('/:id/variants/:variantId/inventory/restock', roleMiddleware(Roles.SELLER), validateRequest(restockInventorySchema), inventoryController.restockInventory);
+router.put('/:id/variants/:variantId/inventory/threshold', roleMiddleware(Roles.SELLER), validateRequest(thresholdInventorySchema), inventoryController.setLowStockThreshold);
 
 export default router;
