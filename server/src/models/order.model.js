@@ -1,103 +1,103 @@
 import mongoose from 'mongoose';
 
+const orderItemSchema = new mongoose.Schema(
+  {
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true,
+    },
+    variant: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProductVariant',
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    productTitle: {
+      type: String,
+      required: true,
+    },
+    variantSku: {
+      type: String,
+      required: true,
+    },
+    variantAttributes: {
+      type: Map,
+      of: String,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
 const orderSchema = new mongoose.Schema(
   {
-    user: {
+    orderNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
       index: true,
     },
-    store: {
+    seller: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Store',
+      ref: 'User',
       required: true,
       index: true,
     },
-    items: {
-      type: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'OrderItem',
-          required: true,
-        },
-      ],
+    checkoutSession: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CheckoutSession',
       required: true,
-      default: [],
     },
-    status: {
-      type: String,
-      enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'],
-      default: 'pending',
-      index: true,
-    },
-    subtotal: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    tax: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0,
-    },
-    shippingFee: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0,
-    },
-    discount: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0,
-    },
-    total: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    currency: {
-      type: String,
-      default: 'USD',
-      uppercase: true,
-      trim: true,
-    },
+    items: [orderItemSchema],
     shippingAddress: {
+      fullName: { type: String, required: true },
+      phone: { type: String, required: true },
       addressLine1: { type: String, required: true },
-      addressLine2: { type: String, default: '' },
+      addressLine2: String,
       city: { type: String, required: true },
       state: { type: String, required: true },
       postalCode: { type: String, required: true },
       country: { type: String, required: true },
     },
-    billingAddress: {
-      addressLine1: { type: String },
-      addressLine2: { type: String, default: '' },
-      city: { type: String },
-      state: { type: String },
-      postalCode: { type: String },
-      country: { type: String },
+    pricing: {
+      subtotal: { type: Number, required: true, min: 0 },
+      shippingFee: { type: Number, required: true, default: 0, min: 0 },
+      tax: { type: Number, required: true, default: 0, min: 0 },
+      total: { type: Number, required: true, min: 0 },
     },
-    paymentStatus: {
+    status: {
       type: String,
-      enum: ['pending', 'paid', 'failed', 'refunded'],
+      enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
       default: 'pending',
       index: true,
     },
-    metadata: {
-      type: Object,
-      default: {},
+    cancelledAt: Date,
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
+    cancelReason: String,
   },
   {
     timestamps: true,
   },
 );
-
-orderSchema.index({ user: 1, status: 1 });
-orderSchema.index({ store: 1, status: 1 });
 
 export const Order = mongoose.model('Order', orderSchema);
