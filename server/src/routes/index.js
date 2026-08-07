@@ -9,6 +9,7 @@ import checkoutRoutes from './checkout.routes.js';
 import orderRoutes from './order.routes.js';
 import paymentRoutes from './payment.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import adminDashboardRoutes from './adminDashboard.routes.js';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/checkout', checkoutRoutes);
 router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/admin/dashboard', adminDashboardRoutes);
 
 export default router;
