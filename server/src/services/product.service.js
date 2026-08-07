@@ -20,13 +20,25 @@ async function ensureUniqueProductSlug(baseSlug, excludeId = null) {
 }
 
 async function verifyStoreOwnershipAndStatus(userId, productStoreId = null) {
-  const store = await Store.findOne({ owner: userId });
+  const store = await Store.findOne({ owner: userId, deletedAt: null });
   if (!store) {
     throw new ApiError(404, 'Store not found. You must create a store before managing products.');
   }
-  if (!store.isApproved) {
-    throw new ApiError(403, 'Your store is pending approval. You cannot list or manage products.');
+  
+  if (store.status !== 'active') {
+    let errorMsg = 'Your store is not active. You cannot list or manage products.';
+    if (store.status === 'draft') {
+      errorMsg = 'Your store is in Draft status. You must submit your store and receive approval before managing products.';
+    } else if (store.status === 'pending_approval') {
+      errorMsg = 'Your store is pending approval. You cannot list or manage products yet.';
+    } else if (store.status === 'suspended') {
+      errorMsg = 'Your store has been suspended. You cannot list or manage products.';
+    } else if (store.status === 'rejected') {
+      errorMsg = 'Your store application was rejected. You cannot list or manage products.';
+    }
+    throw new ApiError(403, errorMsg);
   }
+
   if (productStoreId && String(productStoreId) !== String(store._id)) {
     throw new ApiError(403, 'Unauthorized access to this product.');
   }
