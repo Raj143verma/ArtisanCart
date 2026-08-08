@@ -100,4 +100,7 @@ const orderSchema = new mongoose.Schema(
   },
 );
 
+orderSchema.index({ customer: 1, status: 1, 'items.product': 1 });
+
 export const Order = mongoose.model('Order', orderSchema);
+

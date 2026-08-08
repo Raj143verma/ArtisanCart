@@ -6,8 +6,12 @@ export function errorHandler(err, req, res, next) {
   let message = err.message || 'Internal Server Error';
   let errors = err.errors || null;
 
-  // Handle MongoDB duplicate key errors (code 11000)
-  if (err.code === 11000) {
+  // Handle Mongoose CastError (invalid ObjectId format)
+  if (err.name === 'CastError') {
+    status = 400;
+    message = 'Validation failed: Invalid format for ID.';
+    errors = [{ field: err.path, message: 'Invalid identifier format.' }];
+  } else if (err.code === 11000) {
     status = 400;
     const field = Object.keys(err.keyValue || {})[0] || 'field';
     const value = err.keyValue ? err.keyValue[field] : 'value';
