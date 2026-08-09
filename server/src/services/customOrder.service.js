@@ -3,6 +3,7 @@ import { Store } from '../models/store.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
 import { Order } from '../models/order.model.js';
+import { NotificationService } from './notification.service.js';
 
 export const CustomOrderService = {
   createRequest: async (userId, payload) => {
@@ -32,6 +33,13 @@ export const CustomOrderService = {
       budget: budget || 0,
       attachments: attachments || [],
       status: 'requested',
+    });
+
+    await NotificationService.sendNotification(store.owner, {
+      type: 'order',
+      title: 'New Custom Order Request',
+      message: `You have received a new bespoke request: "${title}"`,
+      metadata: { customOrderId: customOrder._id },
     });
 
     return customOrder;
@@ -65,6 +73,13 @@ export const CustomOrderService = {
       throw new ApiError(400, 'Failed to update quote. The status may have changed.');
     }
 
+    await NotificationService.sendNotification(customOrder.user, {
+      type: 'order',
+      title: 'Custom Order Quoted',
+      message: `The seller has submitted a quote of $${budget} for "${customOrder.title}"`,
+      metadata: { customOrderId: customOrder._id },
+    });
+
     return updated;
   },
 
@@ -92,6 +107,16 @@ export const CustomOrderService = {
       throw new ApiError(400, 'Failed to approve quote. The status may have changed.');
     }
 
+    const store = await Store.findById(customOrder.store);
+    if (store) {
+      await NotificationService.sendNotification(store.owner, {
+        type: 'order',
+        title: 'Quote Approved',
+        message: `The customer has approved your quote for "${customOrder.title}". Waiting for payment.`,
+        metadata: { customOrderId: customOrder._id },
+      });
+    }
+
     return updated;
   },
 
@@ -117,6 +142,15 @@ export const CustomOrderService = {
       ['approved'],
       'in_progress'
     );
+
+    if (updated) {
+      await NotificationService.sendNotification(customOrder.user, {
+        type: 'order',
+        title: 'Work In Progress',
+        message: `The seller has started work on your bespoke item "${customOrder.title}".`,
+        metadata: { customOrderId: customOrder._id },
+      });
+    }
 
     return updated || customOrder;
   },
@@ -150,8 +184,15 @@ export const CustomOrderService = {
     // Also update associated Order status to completed if it exists
     await Order.findOneAndUpdate(
       { customOrder: customOrderId },
-      { $set: { status: 'delivered' } } // or completed/shipped depending on standard workflow
+      { $set: { status: 'delivered' } }
     );
+
+    await NotificationService.sendNotification(customOrder.user, {
+      type: 'order',
+      title: 'Bespoke Order Completed',
+      message: `Your bespoke creation "${customOrder.title}" is complete!`,
+      metadata: { customOrderId: customOrder._id },
+    });
 
     return updated;
   },
@@ -198,6 +239,15 @@ export const CustomOrderService = {
       { customOrder: customOrderId, status: { $ne: 'cancelled' } },
       { $set: { status: 'cancelled', cancelReason: reason || 'Custom order request cancelled by actor' } }
     );
+
+    const store = await Store.findById(customOrder.store);
+    const counterpartId = String(userId) === String(customOrder.user) ? store.owner : customOrder.user;
+    await NotificationService.sendNotification(counterpartId, {
+      type: 'order',
+      title: 'Custom Order Cancelled',
+      message: `Bespoke request "${customOrder.title}" has been cancelled.`,
+      metadata: { customOrderId: customOrder._id, reason },
+    });
 
     return updated;
   },

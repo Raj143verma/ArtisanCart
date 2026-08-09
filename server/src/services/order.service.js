@@ -17,6 +17,7 @@ import { Roles } from '../constants/roles.js';
 import { CouponService } from './coupon.service.js';
 import { CouponRepository } from '../repositories/coupon.repository.js';
 import { CouponUsageRepository } from '../repositories/couponUsage.repository.js';
+import { NotificationService } from './notification.service.js';
 
 async function adjustAndSyncStock(variantId, productId, amount, session = null) {
   if (!variantId || !productId) return null;
@@ -26,6 +27,19 @@ async function adjustAndSyncStock(variantId, productId, amount, session = null) 
   
   await ProductVariantRepository.updateById(variantId, { stockQuantity: inventory.available }, session);
   await InventoryService.syncParentProductStock(productId, session);
+
+  if (inventory.status === 'low_stock' || inventory.status === 'out_of_stock') {
+    const product = await Product.findById(productId).populate('store').session(session);
+    if (product && product.store) {
+      await NotificationService.sendNotification(product.store.owner, {
+        type: 'system',
+        title: 'Low Stock Alert',
+        message: `Stock level is low for product: "${product.title}". Only ${inventory.available} remaining.`,
+        metadata: { productId, variantId, available: inventory.available },
+      }, session);
+    }
+  }
+
   return inventory;
 }
 
@@ -349,6 +363,16 @@ export const OrderService = {
       for (const item of order.items) {
         await adjustAndSyncStock(item.variant, item.product, item.quantity, session);
       }
+
+      // Notify counterpart of order cancellation
+      const counterpartId = String(userId) === String(order.customer) ? order.seller : order.customer;
+      const actorRole = String(userId) === String(order.customer) ? 'customer' : 'seller';
+      await NotificationService.sendNotification(counterpartId, {
+        type: 'order',
+        title: 'Order Cancelled',
+        message: `Order #${order.orderNumber} has been cancelled by the ${actorRole}.`,
+        metadata: { orderId: order._id, reason: cancelReason || '' },
+      }, session);
 
       await session.commitTransaction();
       

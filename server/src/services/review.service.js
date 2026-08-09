@@ -6,6 +6,7 @@ import { Review } from '../models/review.model.js';
 import { Store } from '../models/store.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
+import { NotificationService } from './notification.service.js';
 
 // Atomic aggregator helper to maintain product rating cache counters
 async function updateProductRatingStats(productId, deltaRating, deltaCount, session = null) {
@@ -99,6 +100,16 @@ export const ReviewService = {
 
         // 5. Update parent product's rating cache counters atomically
         await updateProductRatingStats(productId, rating, 1, dbSession);
+
+        const populatedProduct = await Product.findById(productId).populate('store').session(dbSession);
+        if (populatedProduct && populatedProduct.store) {
+          await NotificationService.sendNotification(populatedProduct.store.owner, {
+            type: 'system',
+            title: 'New Product Review',
+            message: `A customer has reviewed your product: "${populatedProduct.title}".`,
+            metadata: { reviewId: review._id, productId },
+          }, dbSession);
+        }
 
         createdReview = review;
       });
@@ -201,6 +212,14 @@ export const ReviewService = {
     };
 
     await review.save();
+
+    await NotificationService.sendNotification(review.user, {
+      type: 'system',
+      title: 'Artisan Replied to Review',
+      message: `The seller has responded to your review on product "${product.title}".`,
+      metadata: { reviewId: review._id, productId: product._id },
+    });
+
     return review;
   },
 

@@ -8,6 +8,7 @@ import { Order } from '../models/order.model.js';
 import { Store } from '../models/store.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
+import { NotificationService } from './notification.service.js';
 
 export const PaymentService = {
   initializePayment: async (userId, userRole, { orderIds, customOrderId, shippingAddress, idempotencyKey, provider }) => {
@@ -244,6 +245,21 @@ export const PaymentService = {
               { $set: { orders: [order[0]._id] } },
               { session }
             );
+
+            // Dispatch custom order notifications
+            await NotificationService.sendNotification(customOrder.user, {
+              type: 'order',
+              title: 'Payment Successful',
+              message: `Your payment of $${customOrder.budget} for "${customOrder.title}" was captured. Custom order is now in progress.`,
+              metadata: { customOrderId: customOrder._id, orderId: order[0]._id },
+            }, session);
+
+            await NotificationService.sendNotification(customOrder.store.owner, {
+              type: 'order',
+              title: 'Custom Order Paid',
+              message: `The quote of $${customOrder.budget} for "${customOrder.title}" has been paid! You can now start working.`,
+              metadata: { customOrderId: customOrder._id, orderId: order[0]._id },
+            }, session);
           }
           await session.commitTransaction();
         } catch (err) {
@@ -260,6 +276,22 @@ export const PaymentService = {
             'confirmed',
             { paymentStatus: 'paid' }
           );
+
+          // Notify buyer
+          await NotificationService.sendNotification(order.customer, {
+            type: 'order',
+            title: 'Order Paid & Confirmed',
+            message: `Your payment for order #${order.orderNumber} has been received and confirmed.`,
+            metadata: { orderId: order._id },
+          });
+
+          // Notify seller
+          await NotificationService.sendNotification(order.seller, {
+            type: 'order',
+            title: 'New Order Received',
+            message: `You have received a new paid order #${order.orderNumber}.`,
+            metadata: { orderId: order._id },
+          });
         }
       }
     }
