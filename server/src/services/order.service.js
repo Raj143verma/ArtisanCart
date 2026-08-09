@@ -19,6 +19,8 @@ import { CouponRepository } from '../repositories/coupon.repository.js';
 import { CouponUsageRepository } from '../repositories/couponUsage.repository.js';
 
 async function adjustAndSyncStock(variantId, productId, amount, session = null) {
+  if (!variantId || !productId) return null;
+
   const inventory = await InventoryRepository.adjustStockAtomic(variantId, amount, session);
   if (!inventory) return null;
   

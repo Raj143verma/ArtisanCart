@@ -18,9 +18,14 @@ const transactionSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Order',
-        required: true,
       },
     ],
+    customOrder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CustomOrder',
+      index: true,
+      default: null,
+    },
     amount: {
       type: Number,
       required: true,
@@ -53,6 +58,10 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
+    },
+    metadata: {
+      type: Object,
+      default: {},
     },
   },
   {

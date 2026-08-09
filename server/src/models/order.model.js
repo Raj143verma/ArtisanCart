@@ -5,12 +5,12 @@ const orderItemSchema = new mongoose.Schema(
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
-      required: true,
+      required: false,
     },
     variant: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ProductVariant',
-      required: true,
+      required: false,
     },
     quantity: {
       type: Number,
@@ -72,7 +72,13 @@ const orderSchema = new mongoose.Schema(
     checkoutSession: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'CheckoutSession',
-      required: true,
+      required: false,
+    },
+    customOrder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CustomOrder',
+      index: true,
+      default: null,
     },
     items: [orderItemSchema],
     shippingAddress: {

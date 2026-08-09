@@ -1,0 +1,204 @@
+import { CustomOrderRepository } from '../repositories/customOrder.repository.js';
+import { Store } from '../models/store.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import { Roles } from '../constants/roles.js';
+import { Order } from '../models/order.model.js';
+
+export const CustomOrderService = {
+  createRequest: async (userId, payload) => {
+    const { storeId, title, description, requestedDeliveryDate, budget, attachments } = payload;
+
+    // 1. Verify store exists and is active/approved
+    const store = await Store.findOne({ _id: storeId, status: 'active', deletedAt: null });
+    if (!store) {
+      throw new ApiError(404, 'The selected store is not active or does not exist.');
+    }
+    if (!store.isApproved) {
+      throw new ApiError(403, 'The selected store is not approved to receive custom orders.');
+    }
+
+    // 2. Prevent self-dealing (sellers requesting custom orders from their own store)
+    if (String(store.owner) === String(userId)) {
+      throw new ApiError(400, 'Sellers cannot request custom orders from their own store.');
+    }
+
+    // 3. Create request
+    const customOrder = await CustomOrderRepository.create({
+      user: userId,
+      store: storeId,
+      title,
+      description,
+      requestedDeliveryDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null,
+      budget: budget || 0,
+      attachments: attachments || [],
+      status: 'requested',
+    });
+
+    return customOrder;
+  },
+
+  submitQuote: async (sellerId, customOrderId, budget) => {
+    const customOrder = await CustomOrderRepository.findById(customOrderId);
+    if (!customOrder) {
+      throw new ApiError(404, 'Custom order not found.');
+    }
+
+    // Verify status is requested or quoted (allowing updates to the quote)
+    if (!['requested', 'quoted'].includes(customOrder.status)) {
+      throw new ApiError(400, `Cannot submit quote. Current status is: ${customOrder.status}`);
+    }
+
+    // Verify seller owns the store
+    const store = await Store.findById(customOrder.store);
+    if (!store || String(store.owner) !== String(sellerId)) {
+      throw new ApiError(403, 'Unauthorized access to quote this custom order.');
+    }
+
+    const updated = await CustomOrderRepository.updateStatusAtomic(
+      customOrderId,
+      ['requested', 'quoted'],
+      'quoted',
+      { budget }
+    );
+
+    if (!updated) {
+      throw new ApiError(400, 'Failed to update quote. The status may have changed.');
+    }
+
+    return updated;
+  },
+
+  approveQuote: async (customerId, customOrderId) => {
+    const customOrder = await CustomOrderRepository.findById(customOrderId);
+    if (!customOrder) {
+      throw new ApiError(404, 'Custom order not found.');
+    }
+
+    if (customOrder.status !== 'quoted') {
+      throw new ApiError(400, 'Only custom orders that have been quoted can be approved.');
+    }
+
+    if (String(customOrder.user) !== String(customerId)) {
+      throw new ApiError(403, 'Only the requesting customer can approve the quote.');
+    }
+
+    const updated = await CustomOrderRepository.updateStatusAtomic(
+      customOrderId,
+      ['quoted'],
+      'approved'
+    );
+
+    if (!updated) {
+      throw new ApiError(400, 'Failed to approve quote. The status may have changed.');
+    }
+
+    return updated;
+  },
+
+  startWork: async (sellerId, customOrderId) => {
+    const customOrder = await CustomOrderRepository.findById(customOrderId);
+    if (!customOrder) {
+      throw new ApiError(404, 'Custom order not found.');
+    }
+
+    // Work can only be marked in progress if approved and paid (which transitions status)
+    if (customOrder.status !== 'approved' && customOrder.status !== 'in_progress') {
+      throw new ApiError(400, 'Cannot start work. Order must be approved first.');
+    }
+
+    // Verify seller ownership
+    const store = await Store.findById(customOrder.store);
+    if (!store || String(store.owner) !== String(sellerId)) {
+      throw new ApiError(403, 'Unauthorized access.');
+    }
+
+    const updated = await CustomOrderRepository.updateStatusAtomic(
+      customOrderId,
+      ['approved'],
+      'in_progress'
+    );
+
+    return updated || customOrder;
+  },
+
+  completeWork: async (sellerId, customOrderId) => {
+    const customOrder = await CustomOrderRepository.findById(customOrderId);
+    if (!customOrder) {
+      throw new ApiError(404, 'Custom order not found.');
+    }
+
+    if (customOrder.status !== 'in_progress') {
+      throw new ApiError(400, 'Only custom orders in progress can be marked completed.');
+    }
+
+    // Verify seller ownership
+    const store = await Store.findById(customOrder.store);
+    if (!store || String(store.owner) !== String(sellerId)) {
+      throw new ApiError(403, 'Unauthorized access.');
+    }
+
+    const updated = await CustomOrderRepository.updateStatusAtomic(
+      customOrderId,
+      ['in_progress'],
+      'completed'
+    );
+
+    if (!updated) {
+      throw new ApiError(400, 'Failed to complete custom order.');
+    }
+
+    // Also update associated Order status to completed if it exists
+    await Order.findOneAndUpdate(
+      { customOrder: customOrderId },
+      { $set: { status: 'delivered' } } // or completed/shipped depending on standard workflow
+    );
+
+    return updated;
+  },
+
+  cancelCustomOrder: async (userId, userRole, customOrderId, reason) => {
+    const customOrder = await CustomOrderRepository.findById(customOrderId);
+    if (!customOrder) {
+      throw new ApiError(404, 'Custom order not found.');
+    }
+
+    if (customOrder.status === 'completed' || customOrder.status === 'cancelled') {
+      throw new ApiError(400, `Cannot cancel order in status: ${customOrder.status}`);
+    }
+
+    if (userRole === Roles.CUSTOMER) {
+      // Customers can only cancel requested or quoted custom orders (before payment/approval)
+      if (String(customOrder.user) !== String(userId)) {
+        throw new ApiError(403, 'Unauthorized access.');
+      }
+      if (!['requested', 'quoted'].includes(customOrder.status)) {
+        throw new ApiError(400, 'You cannot cancel a custom order once it has been approved.');
+      }
+    } else if (userRole === Roles.SELLER) {
+      // Sellers can reject/cancel at any time before completion
+      const store = await Store.findById(customOrder.store);
+      if (!store || String(store.owner) !== String(userId)) {
+        throw new ApiError(403, 'Unauthorized access.');
+      }
+    }
+
+    const updated = await CustomOrderRepository.updateStatusAtomic(
+      customOrderId,
+      ['requested', 'quoted', 'approved', 'in_progress'],
+      'cancelled',
+      { 'metadata.cancelReason': reason || '' }
+    );
+
+    if (!updated) {
+      throw new ApiError(400, 'Failed to cancel custom order.');
+    }
+
+    // Cancel associated standard order if it was already paid/created
+    await Order.findOneAndUpdate(
+      { customOrder: customOrderId, status: { $ne: 'cancelled' } },
+      { $set: { status: 'cancelled', cancelReason: reason || 'Custom order request cancelled by actor' } }
+    );
+
+    return updated;
+  },
+};
