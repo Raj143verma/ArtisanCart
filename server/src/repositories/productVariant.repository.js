@@ -13,7 +13,11 @@ export const ProductVariantRepository = {
 
   findOneBySkuWithDeletedExcludingId: (sku, id) => ProductVariant.findOne({ sku, _id: { $ne: id } }),
 
-  findActiveByProduct: (productId) => ProductVariant.find({ product: productId, deletedAt: null }),
+  findActiveByProduct: (productId, session = null) => {
+    const query = ProductVariant.find({ product: productId, deletedAt: null });
+    if (session) query.session(session);
+    return query;
+  },
   
   list: (filter = {}, opts = {}) => 
     ProductVariant.find(filter)
@@ -23,8 +27,8 @@ export const ProductVariantRepository = {
       
   count: (filter = {}) => ProductVariant.countDocuments(filter),
   
-  updateById: (id, update) => 
-    ProductVariant.findByIdAndUpdate(id, update, { new: true }).where({ deletedAt: null }),
+  updateById: (id, update, session = null) => 
+    ProductVariant.findByIdAndUpdate(id, update, { new: true, session }).where({ deletedAt: null }),
     
   softDelete: (id) => 
     ProductVariant.findByIdAndUpdate(id, { deletedAt: new Date() }, { new: true }),

@@ -12,6 +12,7 @@ import dashboardRoutes from './dashboard.routes.js';
 import adminDashboardRoutes from './adminDashboard.routes.js';
 import reviewRoutes from './review.routes.js';
 import wishlistRoutes from './wishlist.routes.js';
+import couponRoutes from './coupon.routes.js';
 import { listProductReviews } from '../controllers/review.controller.js';
 import { listReviewQuerySchema } from '../validators/review.validator.js';
 import { validateQuery } from '../validators/validator.js';
@@ -32,5 +33,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/wishlist', wishlistRoutes);
+router.use('/coupons', couponRoutes);
 
 export default router;

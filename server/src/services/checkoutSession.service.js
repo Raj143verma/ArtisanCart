@@ -8,6 +8,7 @@ import { validateCartItem, getVariantId, getProductId } from './cart.service.js'
 import { CheckoutSession } from '../models/checkoutSession.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
+import { CouponService } from './coupon.service.js';
 
 async function adjustAndSyncStock(variantId, productId, amount) {
   const inventory = await InventoryRepository.adjustStockAtomic(variantId, amount);
@@ -117,6 +118,7 @@ export const CheckoutSessionService = {
           subtotal,
           shippingFee: 0,
           tax: 0,
+          discount: 0,
           total: subtotal,
         },
         expiresAt,
@@ -178,5 +180,101 @@ export const CheckoutSessionService = {
     }
 
     return CheckoutSessionRepository.findById(sessionId);
+  },
+
+  applyCoupon: async (sessionId, userId, couponCode) => {
+    // 1. Fetch active session
+    const session = await CheckoutSessionRepository.findById(sessionId);
+    if (!session) {
+      throw new ApiError(404, 'Checkout session not found.');
+    }
+    if (String(session.user) !== String(userId)) {
+      throw new ApiError(403, 'Unauthorized access to this checkout session.');
+    }
+    if (session.status !== 'active') {
+      throw new ApiError(400, `Cannot apply coupon. Checkout session status is ${session.status}.`);
+    }
+    if (session.expiresAt < new Date()) {
+      await cleanExpiredSessions(userId);
+      throw new ApiError(400, 'Checkout session has expired.');
+    }
+
+    // 2. Fetch and validate coupon
+    const coupon = await CouponService.getCouponByCode(couponCode);
+    const { eligibleSubtotal } = await CouponService.validateCouponEligibility(
+      coupon,
+      userId,
+      session.items
+    );
+
+    // 3. Calculate discount
+    const discountAmount = CouponService.calculateDiscount(coupon, eligibleSubtotal);
+
+    // 4. Update pricing
+    const subtotal = session.pricing.subtotal;
+    const shippingFee = session.pricing.shippingFee;
+    const tax = session.pricing.tax;
+    const total = Math.max(0, Math.round((subtotal + shippingFee + tax - discountAmount) * 100) / 100);
+
+    const couponSnapshot = {
+      _id: coupon._id,
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      maximumDiscount: coupon.maximumDiscount,
+      minimumOrderValue: coupon.minimumOrderValue,
+      scope: coupon.scope,
+      store: coupon.store,
+    };
+
+    // 5. Save changes
+    const updated = await CheckoutSessionRepository.updateById(sessionId, {
+      appliedCoupon: coupon._id,
+      couponCode: coupon.code,
+      couponDetailsSnapshot: couponSnapshot,
+      'pricing.discount': discountAmount,
+      'pricing.total': total,
+    });
+
+    return updated;
+  },
+
+  removeCoupon: async (sessionId, userId) => {
+    // 1. Fetch active session
+    const session = await CheckoutSessionRepository.findById(sessionId);
+    if (!session) {
+      throw new ApiError(404, 'Checkout session not found.');
+    }
+    if (String(session.user) !== String(userId)) {
+      throw new ApiError(403, 'Unauthorized access to this checkout session.');
+    }
+    if (session.status !== 'active') {
+      throw new ApiError(400, `Cannot remove coupon. Checkout session status is ${session.status}.`);
+    }
+    if (session.expiresAt < new Date()) {
+      await cleanExpiredSessions(userId);
+      throw new ApiError(400, 'Checkout session has expired.');
+    }
+
+    if (!session.appliedCoupon) {
+      return session; // No coupon to remove
+    }
+
+    // 2. Reset pricing
+    const subtotal = session.pricing.subtotal;
+    const shippingFee = session.pricing.shippingFee;
+    const tax = session.pricing.tax;
+    const total = Math.round((subtotal + shippingFee + tax) * 100) / 100;
+
+    // 3. Save changes
+    const updated = await CheckoutSessionRepository.updateById(sessionId, {
+      appliedCoupon: null,
+      couponCode: null,
+      couponDetailsSnapshot: null,
+      'pricing.discount': 0,
+      'pricing.total': total,
+    });
+
+    return updated;
   },
 };

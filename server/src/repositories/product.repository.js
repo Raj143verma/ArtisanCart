@@ -17,8 +17,8 @@ export const ProductRepository = {
       
   count: (filter = {}) => Product.countDocuments(filter),
   
-  updateById: (id, update) => 
-    Product.findByIdAndUpdate(id, update, { new: true }).where({ deletedAt: null }),
+  updateById: (id, update, session = null) => 
+    Product.findByIdAndUpdate(id, update, { new: true, session }).where({ deletedAt: null }),
     
   softDelete: (id) => 
     Product.findByIdAndUpdate(id, { deletedAt: new Date() }, { new: true }),

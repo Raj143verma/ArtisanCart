@@ -64,7 +64,21 @@ const checkoutSessionSchema = new mongoose.Schema(
       subtotal: { type: Number, required: true, default: 0 },
       shippingFee: { type: Number, required: true, default: 0 },
       tax: { type: Number, required: true, default: 0 },
+      discount: { type: Number, required: true, default: 0 },
       total: { type: Number, required: true, default: 0 },
+    },
+    appliedCoupon: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Coupon',
+      default: null,
+    },
+    couponCode: {
+      type: String,
+      default: null,
+    },
+    couponDetailsSnapshot: {
+      type: Object,
+      default: null,
     },
     paymentStatus: {
       type: String,

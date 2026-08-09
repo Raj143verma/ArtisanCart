@@ -24,3 +24,18 @@ export const cancelCheckout = asyncHandler(async (req, res) => {
   const session = await CheckoutSessionService.cancelCheckout(sessionId, userId, role);
   return res.json(createSuccessResponse(session, 'Checkout session cancelled successfully'));
 });
+
+export const applyCoupon = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { sessionId } = req.params;
+  const { couponCode } = req.body;
+  const session = await CheckoutSessionService.applyCoupon(sessionId, userId, couponCode);
+  return res.json(createSuccessResponse(session, 'Coupon applied successfully'));
+});
+
+export const removeCoupon = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { sessionId } = req.params;
+  const session = await CheckoutSessionService.removeCoupon(sessionId, userId);
+  return res.json(createSuccessResponse(session, 'Coupon removed successfully'));
+});

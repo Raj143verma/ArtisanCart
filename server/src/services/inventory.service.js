@@ -32,10 +32,10 @@ async function getOrInitInventory(variant) {
   return inventory;
 }
 
-async function syncParentProductStock(productId) {
-  const activeVariants = await ProductVariantRepository.findActiveByProduct(productId);
+async function syncParentProductStock(productId, session = null) {
+  const activeVariants = await ProductVariantRepository.findActiveByProduct(productId, session);
   const totalStock = activeVariants.reduce((sum, v) => sum + (v.isActive ? (v.stockQuantity || 0) : 0), 0);
-  await ProductRepository.updateById(productId, { stockQuantity: totalStock });
+  await ProductRepository.updateById(productId, { stockQuantity: totalStock }, session);
 }
 
 export const InventoryService = {

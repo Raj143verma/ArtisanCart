@@ -22,6 +22,15 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    discountAllocated: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
+    netTotal: {
+      type: Number,
+      required: true,
+    },
     productTitle: {
       type: String,
       required: true,
@@ -80,7 +89,17 @@ const orderSchema = new mongoose.Schema(
       subtotal: { type: Number, required: true, min: 0 },
       shippingFee: { type: Number, required: true, default: 0, min: 0 },
       tax: { type: Number, required: true, default: 0, min: 0 },
+      discount: { type: Number, required: true, default: 0, min: 0 },
       total: { type: Number, required: true, min: 0 },
+    },
+    coupon: {
+      code: String,
+      discountType: { type: String, enum: ['percentage', 'fixed'] },
+      discountValue: Number,
+      allocatedDiscount: Number,
+      scope: String,
+      store: mongoose.Schema.Types.ObjectId,
+      isMarketplaceSponsored: Boolean,
     },
     status: {
       type: String,

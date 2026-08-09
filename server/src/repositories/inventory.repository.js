@@ -19,7 +19,7 @@ export const InventoryRepository = {
       { new: true, upsert: true, runValidators: true }
     ),
 
-  adjustStockAtomic: (variantId, amount) => {
+  adjustStockAtomic: (variantId, amount, session = null) => {
     const filter = { variant: variantId };
     if (amount < 0) {
       filter.available = { $gte: Math.abs(amount) };
@@ -51,7 +51,7 @@ export const InventoryRepository = {
           }
         }
       ],
-      { new: true }
+      { new: true, session }
     );
   },
 };

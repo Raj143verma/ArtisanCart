@@ -15,3 +15,7 @@ export const initCheckoutSchema = Joi.object({
   shippingAddress: addressSchema.required(),
   billingAddress: addressSchema.allow(null).default(null),
 });
+
+export const applyCouponSchema = Joi.object({
+  couponCode: Joi.string().required().uppercase().trim().min(3).max(15),
+});
