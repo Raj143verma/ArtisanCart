@@ -18,6 +18,7 @@ import { CouponService } from './coupon.service.js';
 import { CouponRepository } from '../repositories/coupon.repository.js';
 import { CouponUsageRepository } from '../repositories/couponUsage.repository.js';
 import { NotificationService } from './notification.service.js';
+import { PayoutService } from './payout.service.js';
 
 async function adjustAndSyncStock(variantId, productId, amount, session = null) {
   if (!variantId || !productId) return null;
@@ -308,7 +309,10 @@ export const OrderService = {
       }
 
       // 3. Perform atomic status transition to block concurrent cancellation requests
-      const allowedStatuses = ['pending', 'confirmed', 'processing'];
+      let allowedStatuses = ['pending', 'confirmed', 'processing'];
+      if (userRole === Roles.CUSTOMER) {
+        allowedStatuses = ['pending', 'confirmed'];
+      }
       const updatedOrder = await Order.findOneAndUpdate(
         {
           _id: orderId,
@@ -364,6 +368,9 @@ export const OrderService = {
         await adjustAndSyncStock(item.variant, item.product, item.quantity, session);
       }
 
+      // Revert pending sale balance if recorded
+      await PayoutService.reversePendingSale(orderId, session);
+
       // Notify counterpart of order cancellation
       const counterpartId = String(userId) === String(order.customer) ? order.seller : order.customer;
       const actorRole = String(userId) === String(order.customer) ? 'customer' : 'seller';
@@ -385,5 +392,110 @@ export const OrderService = {
     } finally {
       session.endSession();
     }
+  },
+
+  processOrder: async (orderId, sellerId) => {
+    const order = await Order.findOneAndUpdate(
+      { _id: orderId, seller: sellerId, status: 'confirmed' },
+      { $set: { status: 'processing' } },
+      { new: true, runValidators: true }
+    );
+
+    if (!order) {
+      const existingOrder = await Order.findById(orderId);
+      if (!existingOrder) {
+        throw new ApiError(404, 'Order not found.');
+      }
+      if (String(existingOrder.seller) !== String(sellerId)) {
+        throw new ApiError(403, 'Unauthorized access to this order.');
+      }
+      throw new ApiError(400, `Cannot process order. Current status is ${existingOrder.status}`);
+    }
+
+    await NotificationService.sendNotification(order.customer, {
+      type: 'order',
+      title: 'Order Processing',
+      message: `Your order #${order.orderNumber} is now being processed by the artisan.`,
+      metadata: { orderId: order._id },
+    });
+
+    return order;
+  },
+
+  shipOrder: async (orderId, sellerId, { carrier, trackingNumber, trackingUrl }) => {
+    const order = await Order.findOneAndUpdate(
+      { _id: orderId, seller: sellerId, status: 'processing' },
+      {
+        $set: {
+          status: 'shipped',
+          'shipmentDetails.carrier': carrier,
+          'shipmentDetails.trackingNumber': trackingNumber,
+          'shipmentDetails.trackingUrl': trackingUrl || null,
+          'shipmentDetails.shippedAt': new Date(),
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!order) {
+      const existingOrder = await Order.findById(orderId);
+      if (!existingOrder) {
+        throw new ApiError(404, 'Order not found.');
+      }
+      if (String(existingOrder.seller) !== String(sellerId)) {
+        throw new ApiError(403, 'Unauthorized access to this order.');
+      }
+      throw new ApiError(400, `Cannot ship order. Current status is ${existingOrder.status}`);
+    }
+
+    await NotificationService.sendNotification(order.customer, {
+      type: 'order',
+      title: 'Order Shipped',
+      message: `Your order #${order.orderNumber} has been shipped via ${carrier.toUpperCase()}! Tracking number: ${trackingNumber}`,
+      metadata: { orderId: order._id, carrier, trackingNumber },
+    });
+
+    return order;
+  },
+
+  deliverOrder: async (orderId, actorId, actorRole) => {
+    const filter = { _id: orderId, status: 'shipped' };
+    if (actorRole !== Roles.SUPER_ADMIN) {
+      filter.seller = actorId;
+    }
+
+    const order = await Order.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          status: 'delivered',
+          'shipmentDetails.deliveredAt': new Date(),
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!order) {
+      const existingOrder = await Order.findById(orderId);
+      if (!existingOrder) {
+        throw new ApiError(404, 'Order not found.');
+      }
+      if (actorRole !== Roles.SUPER_ADMIN && String(existingOrder.seller) !== String(actorId)) {
+        throw new ApiError(403, 'Unauthorized access to this order.');
+      }
+      throw new ApiError(400, `Cannot deliver order. Current status is ${existingOrder.status}`);
+    }
+
+    // Clear sale and release pending balance to available for the merchant
+    await PayoutService.clearSale(order._id);
+
+    await NotificationService.sendNotification(order.customer, {
+      type: 'order',
+      title: 'Order Delivered',
+      message: `Your order #${order.orderNumber} has been delivered. Please leave a review!`,
+      metadata: { orderId: order._id },
+    });
+
+    return order;
   },
 };

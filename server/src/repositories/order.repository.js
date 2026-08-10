@@ -14,10 +14,13 @@ export const OrderRepository = {
   updateById: (id, update) =>
     Order.findByIdAndUpdate(id, update, { new: true, runValidators: true }),
     
-  updateStatusAtomic: (id, allowedCurrentStatuses, targetStatus, updateFields = {}) =>
-    Order.findOneAndUpdate(
+  updateStatusAtomic: (id, allowedCurrentStatuses, targetStatus, updateFields = {}, session = null) => {
+    const options = { new: false };
+    if (session) options.session = session;
+    return Order.findOneAndUpdate(
       { _id: id, status: { $in: allowedCurrentStatuses } },
       { $set: { status: targetStatus, ...updateFields } },
-      { new: false } // Returns old document so service can read items for stock restoration on cancellation
-    ),
+      options
+    );
+  },
 };

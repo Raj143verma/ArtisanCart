@@ -31,3 +31,25 @@ export const cancelOrder = asyncHandler(async (req, res) => {
   const order = await OrderService.cancelOrder(orderId, userId, role, req.body);
   return res.json(createSuccessResponse(order, 'Order cancelled successfully'));
 });
+
+export const processOrder = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { orderId } = req.params;
+  const order = await OrderService.processOrder(orderId, userId);
+  return res.json(createSuccessResponse(order, 'Order is now processing'));
+});
+
+export const shipOrder = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { orderId } = req.params;
+  const order = await OrderService.shipOrder(orderId, userId, req.body);
+  return res.json(createSuccessResponse(order, 'Order marked as shipped'));
+});
+
+export const deliverOrder = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const role = req.user.role;
+  const { orderId } = req.params;
+  const order = await OrderService.deliverOrder(orderId, userId, role);
+  return res.json(createSuccessResponse(order, 'Order marked as delivered'));
+});

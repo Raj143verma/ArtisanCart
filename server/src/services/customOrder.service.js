@@ -1,9 +1,12 @@
+import mongoose from 'mongoose';
+import { CustomOrder } from '../models/customOrder.model.js';
 import { CustomOrderRepository } from '../repositories/customOrder.repository.js';
 import { Store } from '../models/store.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
 import { Order } from '../models/order.model.js';
 import { NotificationService } from './notification.service.js';
+import { PayoutService } from './payout.service.js';
 
 export const CustomOrderService = {
   createRequest: async (userId, payload) => {
@@ -171,30 +174,52 @@ export const CustomOrderService = {
       throw new ApiError(403, 'Unauthorized access.');
     }
 
-    const updated = await CustomOrderRepository.updateStatusAtomic(
-      customOrderId,
-      ['in_progress'],
-      'completed'
-    );
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (!updated) {
-      throw new ApiError(400, 'Failed to complete custom order.');
+    try {
+      // Perform atomic status transition within transaction
+      const updated = await CustomOrder.findOneAndUpdate(
+        { _id: customOrderId, status: 'in_progress' },
+        { $set: { status: 'completed' } },
+        { new: true, session }
+      );
+
+      if (!updated) {
+        throw new ApiError(400, 'Failed to complete custom order.');
+      }
+
+      // Also update associated Order status to completed if it exists
+      const order = await Order.findOneAndUpdate(
+        { customOrder: customOrderId, status: 'confirmed' }, // status check to prevent race conditions
+        {
+          $set: {
+            status: 'delivered',
+            'shipmentDetails.deliveredAt': new Date(),
+          },
+        },
+        { new: true, session }
+      );
+
+      if (order) {
+        await PayoutService.clearSale(order._id, session);
+      }
+
+      await NotificationService.sendNotification(customOrder.user, {
+        type: 'order',
+        title: 'Bespoke Order Completed',
+        message: `Your bespoke creation "${customOrder.title}" is complete!`,
+        metadata: { customOrderId: customOrder._id },
+      }, session);
+
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    // Also update associated Order status to completed if it exists
-    await Order.findOneAndUpdate(
-      { customOrder: customOrderId },
-      { $set: { status: 'delivered' } }
-    );
-
-    await NotificationService.sendNotification(customOrder.user, {
-      type: 'order',
-      title: 'Bespoke Order Completed',
-      message: `Your bespoke creation "${customOrder.title}" is complete!`,
-      metadata: { customOrderId: customOrder._id },
-    });
-
-    return updated;
   },
 
   cancelCustomOrder: async (userId, userRole, customOrderId, reason) => {

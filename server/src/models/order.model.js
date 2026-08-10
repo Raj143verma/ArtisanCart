@@ -119,6 +119,31 @@ const orderSchema = new mongoose.Schema(
       ref: 'User',
     },
     cancelReason: String,
+    shipmentDetails: {
+      carrier: {
+        type: String,
+        enum: ['usps', 'ups', 'fedex', 'dhl', 'other', null],
+        default: null,
+      },
+      trackingNumber: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+      trackingUrl: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+      shippedAt: {
+        type: Date,
+        default: null,
+      },
+      deliveredAt: {
+        type: Date,
+        default: null,
+      },
+    },
   },
   {
     timestamps: true,
@@ -126,6 +151,8 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.index({ customer: 1, status: 1, 'items.product': 1 });
+orderSchema.index({ seller: 1, status: 1, createdAt: -1 });
+orderSchema.index({ 'shipmentDetails.trackingNumber': 1 }, { sparse: true });
 
 export const Order = mongoose.model('Order', orderSchema);
 

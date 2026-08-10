@@ -9,6 +9,7 @@ import { Store } from '../models/store.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
 import { NotificationService } from './notification.service.js';
+import { PayoutService } from './payout.service.js';
 
 export const PaymentService = {
   initializePayment: async (userId, userRole, { orderIds, customOrderId, shippingAddress, idempotencyKey, provider }) => {
@@ -239,6 +240,7 @@ export const PaymentService = {
             };
 
             const order = await Order.create([orderPayload], { session });
+            await PayoutService.recordPendingSale(order[0]._id, session);
 
             await Transaction.updateOne(
               { _id: transaction._id },
@@ -270,12 +272,16 @@ export const PaymentService = {
         }
       } else {
         for (const order of transaction.orders) {
-          await OrderRepository.updateStatusAtomic(
+          const updated = await OrderRepository.updateStatusAtomic(
             order._id,
             ['pending'],
             'confirmed',
             { paymentStatus: 'paid' }
           );
+
+          if (updated) {
+            await PayoutService.recordPendingSale(order._id);
+          }
 
           // Notify buyer
           await NotificationService.sendNotification(order.customer, {
