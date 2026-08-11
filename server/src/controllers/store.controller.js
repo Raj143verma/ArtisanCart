@@ -26,26 +26,26 @@ export const submitStoreForApproval = asyncHandler(async (req, res) => {
 
 export const approveStore = asyncHandler(async (req, res) => {
   const id = req.params.id;
-  const store = await StoreService.approve(id);
+  const store = await StoreService.approve(id, req);
   return res.json(createSuccessResponse(store, 'Store approved successfully'));
 });
 
 export const rejectStore = asyncHandler(async (req, res) => {
   const id = req.params.id;
   const { reason } = req.body;
-  const store = await StoreService.reject(id, reason);
+  const store = await StoreService.reject(id, reason, req);
   return res.json(createSuccessResponse(store, 'Store rejected successfully'));
 });
 
 export const suspendStore = asyncHandler(async (req, res) => {
   const id = req.params.id;
-  const store = await StoreService.suspend(id);
+  const store = await StoreService.suspend(id, req);
   return res.json(createSuccessResponse(store, 'Store suspended successfully'));
 });
 
 export const unsuspendStore = asyncHandler(async (req, res) => {
   const id = req.params.id;
-  const store = await StoreService.unsuspend(id);
+  const store = await StoreService.unsuspend(id, req);
   return res.json(createSuccessResponse(store, 'Store unsuspended successfully'));
 });
 

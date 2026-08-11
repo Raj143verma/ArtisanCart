@@ -35,7 +35,7 @@ export const processPayout = asyncHandler(async (req, res) => {
   const adminId = req.user._id;
   const role = req.user.role;
   const { payoutId } = req.params;
-  const payout = await PayoutService.processPayout(adminId, role, payoutId, req.body);
+  const payout = await PayoutService.processPayout(adminId, role, payoutId, req.body, req);
   return res.json(createSuccessResponse(payout, 'Payout request processed successfully'));
 });
 

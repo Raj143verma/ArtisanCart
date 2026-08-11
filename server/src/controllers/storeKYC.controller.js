@@ -25,7 +25,7 @@ export const reviewKYC = asyncHandler(async (req, res) => {
   const role = req.user.role;
   const { kycId } = req.params;
 
-  const updated = await StoreKYCService.reviewKYC(adminId, role, kycId, req.body);
+  const updated = await StoreKYCService.reviewKYC(adminId, role, kycId, req.body, req);
   return res.json(createSuccessResponse(updated, 'KYC verification review completed.'));
 });
 

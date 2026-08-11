@@ -18,6 +18,7 @@ import notificationRoutes from './notification.routes.js';
 import payoutRoutes from './payout.routes.js';
 import returnRoutes from './return.routes.js';
 import storeKYCRoutes from './storeKYC.routes.js';
+import auditLogRoutes from './auditLog.routes.js';
 import { listProductReviews } from '../controllers/review.controller.js';
 import { listReviewQuerySchema } from '../validators/review.validator.js';
 import { validateQuery } from '../validators/validator.js';
@@ -44,5 +45,6 @@ router.use('/notifications', notificationRoutes);
 router.use('/payouts', payoutRoutes);
 router.use('/returns', returnRoutes);
 router.use('/kyc', storeKYCRoutes);
+router.use('/admin/audit-logs', auditLogRoutes);
 
 export default router;

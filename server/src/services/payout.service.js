@@ -8,6 +8,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
 import { NotificationService } from './notification.service.js';
 import { StoreKYC } from '../models/storeKYC.model.js';
+import { AuditLogService } from './auditLog.service.js';
 
 // Helper to generate transaction numbers
 const generateLedgerNumber = () => `LDG-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -349,7 +350,7 @@ export const PayoutService = {
   },
 
   // 4. Process Payout (Admin approves or rejects)
-  processPayout: async (adminId, adminRole, payoutId, { status, rejectionReason }) => {
+  processPayout: async (adminId, adminRole, payoutId, { status, rejectionReason }, reqContext = null) => {
     if (adminRole !== Roles.SUPER_ADMIN) {
       throw new ApiError(403, 'Only super administrators can process payouts.');
     }
@@ -364,6 +365,8 @@ export const PayoutService = {
     try {
       const payout = await PayoutRequest.findById(payoutId).session(session);
       if (!payout) throw new ApiError(404, 'Payout request not found.');
+
+      const before = payout.toObject();
 
       if (payout.status !== 'requested' && payout.status !== 'processing') {
         throw new ApiError(400, `Payout is already processed in state: ${payout.status}`);
@@ -443,6 +446,17 @@ export const PayoutService = {
           metadata: { payoutId: payout._id },
         }, session);
       }
+
+      const after = payout.toObject();
+      await AuditLogService.logAction(
+        reqContext || adminId,
+        `payout.${status}`,
+        'PayoutRequest',
+        payout._id,
+        { before, after },
+        {},
+        session
+      );
 
       await session.commitTransaction();
       return payout;

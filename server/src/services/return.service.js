@@ -13,6 +13,7 @@ import { Payment } from '../models/payment.model.js';
 import { PayoutService } from './payout.service.js';
 import { InventoryService } from './inventory.service.js';
 import { NotificationService } from './notification.service.js';
+import { AuditLogService } from './auditLog.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
 
@@ -268,7 +269,7 @@ export const ReturnService = {
   },
 
   // 5. Resolve Dispute (Admin)
-  resolveDispute: async (adminId, adminRole, returnId, { status, rejectionReason }) => {
+  resolveDispute: async (adminId, adminRole, returnId, { status, rejectionReason }, reqContext = null) => {
     if (adminRole !== Roles.SUPER_ADMIN) {
       throw new ApiError(403, 'Only super administrators can resolve disputes.');
     }
@@ -279,6 +280,8 @@ export const ReturnService = {
 
     const returnRequest = await ReturnRequestRepository.findById(returnId);
     if (!returnRequest) throw new ApiError(404, 'Return request not found.');
+
+    const before = returnRequest.toObject();
 
     const updateFields = {
       resolvedAt: new Date(),
@@ -308,6 +311,15 @@ export const ReturnService = {
       message: `The administrator has resolved your dispute for return #${returnRequest.returnNumber} as: ${status}.`,
       metadata: { returnId: returnRequest._id },
     });
+
+    const after = updated.toObject();
+    await AuditLogService.logAction(
+      reqContext || adminId,
+      `dispute.resolve_${status}`,
+      'ReturnRequest',
+      returnRequest._id,
+      { before, after }
+    );
 
     return updated;
   },

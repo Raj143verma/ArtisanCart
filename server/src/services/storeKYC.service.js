@@ -6,6 +6,7 @@ import { encrypt, decrypt } from '../utils/cryptoUtils.js';
 import { NotificationService } from './notification.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
+import { AuditLogService } from './auditLog.service.js';
 
 export const StoreKYCService = {
   // 1. Submit KYC & Bank Details (Seller)
@@ -120,7 +121,7 @@ export const StoreKYCService = {
   },
 
   // 3. Review KYC & Bank Details (Admin)
-  reviewKYC: async (adminId, adminRole, kycId, { status, rejectionReason }) => {
+  reviewKYC: async (adminId, adminRole, kycId, { status, rejectionReason }, reqContext = null) => {
     if (adminRole !== Roles.SUPER_ADMIN) {
       throw new ApiError(403, 'Only super administrators can review KYC submissions.');
     }
@@ -133,6 +134,8 @@ export const StoreKYCService = {
     if (!kyc) {
       throw new ApiError(404, 'KYC submission profile not found.');
     }
+
+    const before = kyc.toObject();
 
     if (status === 'rejected' && !rejectionReason) {
       throw new ApiError(400, 'Rejection reason is required.');
@@ -174,6 +177,17 @@ export const StoreKYCService = {
           message,
           metadata: { kycId: kyc._id, status },
         },
+        session
+      );
+
+      const after = updated.toObject();
+      await AuditLogService.logAction(
+        reqContext || adminId,
+        `kyc.${status}`,
+        'StoreKYC',
+        kyc._id,
+        { before, after },
+        {},
         session
       );
 

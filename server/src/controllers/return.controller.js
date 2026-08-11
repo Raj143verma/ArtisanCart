@@ -44,7 +44,7 @@ export const resolveDispute = asyncHandler(async (req, res) => {
   const adminId = req.user._id;
   const role = req.user.role;
   const { returnId } = req.params;
-  const returnRequest = await ReturnService.resolveDispute(adminId, role, returnId, req.body);
+  const returnRequest = await ReturnService.resolveDispute(adminId, role, returnId, req.body, req);
   return res.json(createSuccessResponse(returnRequest, 'Dispute resolved successfully'));
 });
 

@@ -4,6 +4,7 @@ import { Product } from '../models/product.model.js';
 import { slugify, appendSuffix } from '../utils/slugUtils.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
+import { AuditLogService } from './auditLog.service.js';
 
 async function ensureUniqueStoreSlug(baseSlug, excludeId = null) {
   let slug = baseSlug;
@@ -112,7 +113,7 @@ export const StoreService = {
     return store;
   },
 
-  approve: async (id) => {
+  approve: async (id, reqContext = null) => {
     const store = await StoreRepository.findById(id);
     if (!store) {
       throw new ApiError(404, 'Store not found.');
@@ -122,6 +123,8 @@ export const StoreService = {
       throw new ApiError(400, `Cannot approve a store in status "${store.status}".`);
     }
 
+    const before = store.toObject();
+
     store.status = 'active';
     store.rejectionReason = '';
     await store.save();
@@ -129,10 +132,19 @@ export const StoreService = {
     // Re-activate previously published products of this store
     await Product.updateMany({ store: id, status: 'published' }, { isActive: true });
 
+    const after = store.toObject();
+    await AuditLogService.logAction(
+      reqContext,
+      'store.approve',
+      'Store',
+      store._id,
+      { before, after }
+    );
+
     return store;
   },
 
-  reject: async (id, reason) => {
+  reject: async (id, reason, reqContext = null) => {
     const store = await StoreRepository.findById(id);
     if (!store) {
       throw new ApiError(404, 'Store not found.');
@@ -142,13 +154,25 @@ export const StoreService = {
       throw new ApiError(400, `Cannot reject a store in status "${store.status}".`);
     }
 
+    const before = store.toObject();
+
     store.status = 'rejected';
     store.rejectionReason = reason;
     await store.save();
+
+    const after = store.toObject();
+    await AuditLogService.logAction(
+      reqContext,
+      'store.reject',
+      'Store',
+      store._id,
+      { before, after }
+    );
+
     return store;
   },
 
-  suspend: async (id) => {
+  suspend: async (id, reqContext = null) => {
     const store = await StoreRepository.findById(id);
     if (!store) {
       throw new ApiError(404, 'Store not found.');
@@ -158,16 +182,27 @@ export const StoreService = {
       throw new ApiError(400, 'Only active stores can be suspended.');
     }
 
+    const before = store.toObject();
+
     store.status = 'suspended';
     await store.save();
 
     // Disable visibility of all products belonging to this suspended store
     await Product.updateMany({ store: id }, { isActive: false });
 
+    const after = store.toObject();
+    await AuditLogService.logAction(
+      reqContext,
+      'store.suspend',
+      'Store',
+      store._id,
+      { before, after }
+    );
+
     return store;
   },
 
-  unsuspend: async (id) => {
+  unsuspend: async (id, reqContext = null) => {
     const store = await StoreRepository.findById(id);
     if (!store) {
       throw new ApiError(404, 'Store not found.');
@@ -177,11 +212,22 @@ export const StoreService = {
       throw new ApiError(400, 'Only suspended stores can be unsuspended.');
     }
 
+    const before = store.toObject();
+
     store.status = 'active';
     await store.save();
 
     // Reactivate products that are published
     await Product.updateMany({ store: id, status: 'published' }, { isActive: true });
+
+    const after = store.toObject();
+    await AuditLogService.logAction(
+      reqContext,
+      'store.unsuspend',
+      'Store',
+      store._id,
+      { before, after }
+    );
 
     return store;
   },
