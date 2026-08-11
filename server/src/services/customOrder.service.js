@@ -7,6 +7,8 @@ import { Roles } from '../constants/roles.js';
 import { Order } from '../models/order.model.js';
 import { NotificationService } from './notification.service.js';
 import { PayoutService } from './payout.service.js';
+import { RefundTransaction } from '../models/refundTransaction.model.js';
+import { Transaction } from '../models/transaction.model.js';
 
 export const CustomOrderService = {
   createRequest: async (userId, payload) => {
@@ -191,7 +193,7 @@ export const CustomOrderService = {
 
       // Also update associated Order status to completed if it exists
       const order = await Order.findOneAndUpdate(
-        { customOrder: customOrderId, status: 'confirmed' }, // status check to prevent race conditions
+        { customOrder: customOrderId, status: { $in: ['confirmed', 'processing', 'shipped'] } }, // status check to prevent race conditions
         {
           $set: {
             status: 'delivered',
@@ -223,57 +225,98 @@ export const CustomOrderService = {
   },
 
   cancelCustomOrder: async (userId, userRole, customOrderId, reason) => {
-    const customOrder = await CustomOrderRepository.findById(customOrderId);
-    if (!customOrder) {
-      throw new ApiError(404, 'Custom order not found.');
-    }
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (customOrder.status === 'completed' || customOrder.status === 'cancelled') {
-      throw new ApiError(400, `Cannot cancel order in status: ${customOrder.status}`);
-    }
-
-    if (userRole === Roles.CUSTOMER) {
-      // Customers can only cancel requested or quoted custom orders (before payment/approval)
-      if (String(customOrder.user) !== String(userId)) {
-        throw new ApiError(403, 'Unauthorized access.');
+    try {
+      const customOrder = await CustomOrder.findById(customOrderId).session(session);
+      if (!customOrder) {
+        throw new ApiError(404, 'Custom order not found.');
       }
-      if (!['requested', 'quoted'].includes(customOrder.status)) {
-        throw new ApiError(400, 'You cannot cancel a custom order once it has been approved.');
+
+      if (customOrder.status === 'completed' || customOrder.status === 'cancelled') {
+        throw new ApiError(400, `Cannot cancel order in status: ${customOrder.status}`);
       }
-    } else if (userRole === Roles.SELLER) {
-      // Sellers can reject/cancel at any time before completion
-      const store = await Store.findById(customOrder.store);
-      if (!store || String(store.owner) !== String(userId)) {
-        throw new ApiError(403, 'Unauthorized access.');
+
+      if (userRole === Roles.CUSTOMER) {
+        // Customers can only cancel requested or quoted custom orders (before payment/approval)
+        if (String(customOrder.user) !== String(userId)) {
+          throw new ApiError(403, 'Unauthorized access.');
+        }
+        if (!['requested', 'quoted'].includes(customOrder.status)) {
+          throw new ApiError(400, 'You cannot cancel a custom order once it has been approved.');
+        }
+      } else if (userRole === Roles.SELLER) {
+        // Sellers can reject/cancel at any time before completion
+        const store = await Store.findById(customOrder.store).session(session);
+        if (!store || String(store.owner) !== String(userId)) {
+          throw new ApiError(403, 'Unauthorized access.');
+        }
       }
+
+      const updated = await CustomOrder.findOneAndUpdate(
+        { _id: customOrderId, status: { $in: ['requested', 'quoted', 'approved', 'in_progress'] } },
+        { $set: { status: 'cancelled', 'metadata.cancelReason': reason || '' } },
+        { new: true, session }
+      );
+
+      if (!updated) {
+        throw new ApiError(400, 'Failed to cancel custom order.');
+      }
+
+      // Cancel associated standard order if it was already paid/created
+      const order = await Order.findOne(
+        { customOrder: customOrderId, status: { $ne: 'cancelled' } }
+      ).session(session);
+
+      if (order) {
+        order.status = 'cancelled';
+        order.cancelReason = reason || 'Custom order request cancelled by actor';
+
+        // Revert payout balances and create refund logs if the order has been paid
+        if (order.paymentStatus === 'paid') {
+          order.paymentStatus = 'refunded';
+
+          await PayoutService.reversePendingSale(order._id, session);
+
+          const txn = await Transaction.findOne({ orders: order._id }).session(session);
+
+          const refundTxNumber = `REF-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+          await RefundTransaction.create(
+            [
+              {
+                refundNumber: refundTxNumber,
+                originalTransaction: txn ? txn._id : new mongoose.Types.ObjectId(), // Fallback if no payment txn is created yet
+                order: order._id,
+                amount: order.pricing.total,
+                status: 'succeeded',
+                providerRefundId: `ch_mock_ref_${Date.now()}`,
+                reason: reason || 'Custom order request cancelled by actor',
+              },
+            ],
+            { session }
+          );
+        }
+
+        await order.save({ session });
+      }
+
+      const store = await Store.findById(customOrder.store).session(session);
+      const counterpartId = String(userId) === String(customOrder.user) ? store.owner : customOrder.user;
+      await NotificationService.sendNotification(counterpartId, {
+        type: 'order',
+        title: 'Custom Order Cancelled',
+        message: `Bespoke request "${customOrder.title}" has been cancelled.`,
+        metadata: { customOrderId: customOrder._id, reason },
+      }, session);
+
+      await session.commitTransaction();
+      return updated;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    const updated = await CustomOrderRepository.updateStatusAtomic(
-      customOrderId,
-      ['requested', 'quoted', 'approved', 'in_progress'],
-      'cancelled',
-      { 'metadata.cancelReason': reason || '' }
-    );
-
-    if (!updated) {
-      throw new ApiError(400, 'Failed to cancel custom order.');
-    }
-
-    // Cancel associated standard order if it was already paid/created
-    await Order.findOneAndUpdate(
-      { customOrder: customOrderId, status: { $ne: 'cancelled' } },
-      { $set: { status: 'cancelled', cancelReason: reason || 'Custom order request cancelled by actor' } }
-    );
-
-    const store = await Store.findById(customOrder.store);
-    const counterpartId = String(userId) === String(customOrder.user) ? store.owner : customOrder.user;
-    await NotificationService.sendNotification(counterpartId, {
-      type: 'order',
-      title: 'Custom Order Cancelled',
-      message: `Bespoke request "${customOrder.title}" has been cancelled.`,
-      metadata: { customOrderId: customOrder._id, reason },
-    });
-
-    return updated;
   },
 };

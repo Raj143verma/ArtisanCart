@@ -7,6 +7,7 @@ import { Order } from '../models/order.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { Roles } from '../constants/roles.js';
 import { NotificationService } from './notification.service.js';
+import { StoreKYC } from '../models/storeKYC.model.js';
 
 // Helper to generate transaction numbers
 const generateLedgerNumber = () => `LDG-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -287,6 +288,12 @@ export const PayoutService = {
       if (existingPayoutInTx) {
         await session.commitTransaction();
         return existingPayoutInTx;
+      }
+
+      // Verify KYC is complete and verified
+      const kyc = await StoreKYC.findOne({ store: store._id }).session(session);
+      if (!kyc || kyc.verificationStatus !== 'verified') {
+        throw new ApiError(400, 'Your store is not KYC verified. Payouts are blocked.');
       }
 
       const balance = await PayoutService.getOrCreateStoreBalance(store._id, session);
