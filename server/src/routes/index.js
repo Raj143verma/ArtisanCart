@@ -16,6 +16,7 @@ import couponRoutes from './coupon.routes.js';
 import customOrderRoutes from './customOrder.routes.js';
 import notificationRoutes from './notification.routes.js';
 import payoutRoutes from './payout.routes.js';
+import returnRoutes from './return.routes.js';
 import { listProductReviews } from '../controllers/review.controller.js';
 import { listReviewQuerySchema } from '../validators/review.validator.js';
 import { validateQuery } from '../validators/validator.js';
@@ -40,5 +41,6 @@ router.use('/coupons', couponRoutes);
 router.use('/custom-orders', customOrderRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/payouts', payoutRoutes);
+router.use('/returns', returnRoutes);
 
 export default router;

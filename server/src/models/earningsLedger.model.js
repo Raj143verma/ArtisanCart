@@ -57,7 +57,7 @@ const earningsLedgerSchema = new mongoose.Schema(
 earningsLedgerSchema.index({ store: 1, createdAt: -1 });
 earningsLedgerSchema.index(
   { order: 1, transactionType: 1 },
-  { unique: true, partialFilterExpression: { order: { $exists: true, $ne: null } } }
+  { unique: true, partialFilterExpression: { order: { $type: 'objectId' } } }
 );
 
 export const EarningsLedger = mongoose.model('EarningsLedger', earningsLedgerSchema);
