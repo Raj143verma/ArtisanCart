@@ -6,17 +6,84 @@ import { SellerLayout } from '../layouts/SellerLayout';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
-import { AdminAuditLogsPage, AdminHome, AdminKycPage, AdminOrdersPage, AdminPayoutsPage, AdminReturnsPage, AdminStoresPage, CartPage, CustomerHome, CustomerOrdersPage, ProductsPage, SellerHome, SellerKycPage, SellerOrdersPage, SellerPayoutsPage, SellerProductsPage } from '../pages/PlaceholderRoutes';
+import { CartPage } from '../pages/CartPage';
+import { CheckoutPage } from '../pages/CheckoutPage';
+import { OrderConfirmationPage } from '../pages/OrderConfirmationPage';
+import { ProductDetailPage } from '../pages/ProductDetailPage';
+import { ProductsPage } from '../pages/ProductsPage';
+import { WishlistPage } from '../pages/WishlistPage';
+import {
+  AdminAuditLogsPage,
+  AdminHome,
+  AdminKycPage,
+  AdminOrdersPage,
+  AdminPayoutsPage,
+  AdminReturnsPage,
+  AdminStoresPage,
+  CustomerHome,
+  CustomerOrdersPage,
+  SellerHome,
+  SellerKycPage,
+  SellerOrdersPage,
+  SellerPayoutsPage,
+  SellerProductsPage,
+} from '../pages/PlaceholderRoutes';
 import { ProtectedRoute, RoleRoute } from './RouteGuards';
 
 export function AppRoutes() {
-  return <Routes>
-    <Route element={<PublicLayout />}><Route path="/" element={<HomePage />} /><Route path="/login" element={<LoginPage />} /><Route path="/register" element={<RegisterPage />} /></Route>
-    <Route element={<ProtectedRoute />}>
-      <Route element={<RoleRoute allowedRoles={['customer']} />}><Route element={<CustomerLayout />}><Route path="/customer" element={<CustomerHome />} /><Route path="/customer/products" element={<ProductsPage />} /><Route path="/customer/cart" element={<CartPage />} /><Route path="/customer/orders" element={<CustomerOrdersPage />} /></Route></Route>
-      <Route element={<RoleRoute allowedRoles={['seller']} />}><Route element={<SellerLayout />}><Route path="/seller" element={<SellerHome />} /><Route path="/seller/products" element={<SellerProductsPage />} /><Route path="/seller/orders" element={<SellerOrdersPage />} /><Route path="/seller/kyc" element={<SellerKycPage />} /><Route path="/seller/payouts" element={<SellerPayoutsPage />} /></Route></Route>
-      <Route element={<RoleRoute allowedRoles={['super_admin']} />}><Route element={<AdminLayout />}><Route path="/admin" element={<AdminHome />} /><Route path="/admin/stores" element={<AdminStoresPage />} /><Route path="/admin/kyc" element={<AdminKycPage />} /><Route path="/admin/orders" element={<AdminOrdersPage />} /><Route path="/admin/returns" element={<AdminReturnsPage />} /><Route path="/admin/payouts" element={<AdminPayoutsPage />} /><Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} /></Route></Route>
-    </Route>
-    <Route path="*" element={<Navigate to="/" replace />} />
-  </Routes>;
+  return (
+    <Routes>
+      {/* Public Storefront & Catalog */}
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products/:id" element={<ProductDetailPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Route>
+
+      {/* Authenticated Zone */}
+      <Route element={<ProtectedRoute />}>
+        {/* Customer Zone */}
+        <Route element={<RoleRoute allowedRoles={['customer']} />}>
+          <Route element={<CustomerLayout />}>
+            <Route path="/customer" element={<CustomerHome />} />
+            <Route path="/customer/products" element={<ProductsPage />} />
+            <Route path="/customer/products/:id" element={<ProductDetailPage />} />
+            <Route path="/customer/cart" element={<CartPage />} />
+            <Route path="/customer/wishlist" element={<WishlistPage />} />
+            <Route path="/customer/checkout" element={<CheckoutPage />} />
+            <Route path="/customer/orders" element={<CustomerOrdersPage />} />
+            <Route path="/customer/orders/confirmation" element={<OrderConfirmationPage />} />
+          </Route>
+        </Route>
+
+        {/* Seller Zone */}
+        <Route element={<RoleRoute allowedRoles={['seller']} />}>
+          <Route element={<SellerLayout />}>
+            <Route path="/seller" element={<SellerHome />} />
+            <Route path="/seller/products" element={<SellerProductsPage />} />
+            <Route path="/seller/orders" element={<SellerOrdersPage />} />
+            <Route path="/seller/kyc" element={<SellerKycPage />} />
+            <Route path="/seller/payouts" element={<SellerPayoutsPage />} />
+          </Route>
+        </Route>
+
+        {/* Super Admin Zone */}
+        <Route element={<RoleRoute allowedRoles={['super_admin']} />}>
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<AdminHome />} />
+            <Route path="/admin/stores" element={<AdminStoresPage />} />
+            <Route path="/admin/kyc" element={<AdminKycPage />} />
+            <Route path="/admin/orders" element={<AdminOrdersPage />} />
+            <Route path="/admin/returns" element={<AdminReturnsPage />} />
+            <Route path="/admin/payouts" element={<AdminPayoutsPage />} />
+            <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
+          </Route>
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }

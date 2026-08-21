@@ -1,8 +1,6 @@
 import { PagePlaceholder } from '../components/common/PagePlaceholder';
 
 export const CustomerHome = () => <PagePlaceholder title="Customer dashboard" description="Customer dashboard foundation. Commerce modules will be added in a later step." />;
-export const ProductsPage = () => <PagePlaceholder title="Products" description="Product browsing and search will be added in the customer feature phase." />;
-export const CartPage = () => <PagePlaceholder title="Cart" description="Cart and checkout UI will be added in the customer feature phase." />;
 export const CustomerOrdersPage = () => <PagePlaceholder title="Orders" description="Order history and tracking UI will be added in the customer feature phase." />;
 export const SellerHome = () => <PagePlaceholder title="Seller dashboard" description="Seller operations foundation. Store and fulfillment modules will be added in a later step." />;
 export const SellerProductsPage = () => <PagePlaceholder title="Seller products" description="Seller product management will be added in the seller feature phase." />;

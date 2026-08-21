@@ -1,0 +1,567 @@
+// ==========================================
+// ARTISANCART — CHECKOUT & PAYMENT STYLES
+// ==========================================
+
+@use 'variables' as *;
+
+.checkout-page-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+
+  .checkout-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+
+    .checkout-title {
+      font-size: 2.2rem;
+      color: $primary-dark;
+      margin: 0;
+    }
+  }
+}
+
+// ------------------------------------------
+// CHECKOUT STEPPER
+// ------------------------------------------
+.checkout-stepper {
+  margin-bottom: 2.5rem;
+
+  .stepper-list {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .stepper-item {
+    display: flex;
+    align-items: center;
+    position: relative;
+    flex: 1;
+
+    &:last-child {
+      flex: 0;
+      .stepper-line {
+        display: none;
+      }
+    }
+
+    .stepper-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: $canvas;
+      color: $muted;
+      border: 2px solid $line;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      z-index: 2;
+      transition: all 0.2s ease;
+    }
+
+    .stepper-label {
+      margin-left: 0.6rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: $muted;
+      white-space: nowrap;
+    }
+
+    .stepper-line {
+      flex: 1;
+      height: 2px;
+      background: $line;
+      margin: 0 0.75rem;
+      transition: background 0.3s ease;
+    }
+
+    &.active {
+      .stepper-circle {
+        background: $primary-dark;
+        color: #ffffff;
+        border-color: $primary-dark;
+        box-shadow: 0 0 0 4px rgba(16, 59, 104, 0.15);
+      }
+      .stepper-label {
+        color: $primary-dark;
+        font-weight: 700;
+      }
+    }
+
+    &.completed {
+      .stepper-circle {
+        background: $success;
+        color: #ffffff;
+        border-color: $success;
+      }
+      .stepper-label {
+        color: $success;
+      }
+      .stepper-line {
+        background: $success;
+      }
+    }
+  }
+}
+
+// ------------------------------------------
+// CHECKOUT TIMER PILL
+// ------------------------------------------
+.checkout-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: $primary-light;
+  border: 1px solid #c8e1fb;
+  color: $primary-dark;
+  padding: 0.45rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 500;
+
+  &.urgent {
+    background: $warning-light;
+    border-color: #ffd8bf;
+    color: $warning;
+    animation: pulseGlow 1.5s infinite;
+  }
+
+  &.expired {
+    background: $error-light;
+    border-color: #fcc2c8;
+    color: $error;
+  }
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 0 0 rgba(181, 71, 8, 0.3); }
+  70% { box-shadow: 0 0 0 6px rgba(181, 71, 8, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(181, 71, 8, 0); }
+}
+
+// ------------------------------------------
+// SESSION EXPIRED ALERT
+// ------------------------------------------
+.checkout-session-alert {
+  background: $error-light;
+  border: 1px solid #f8d7da;
+  border-radius: $radius-lg;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  .alert-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: $error;
+
+    h4 {
+      margin: 0 0 0.2rem 0;
+      font-size: 1.05rem;
+    }
+    p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: #721c24;
+    }
+  }
+}
+
+// ------------------------------------------
+// ADDRESS FORM
+// ------------------------------------------
+.checkout-address-form {
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: $shadow-sm;
+
+  .form-section {
+    margin-bottom: 1.75rem;
+
+    .section-title {
+      font-size: 1.3rem;
+      color: $primary-dark;
+      margin: 0 0 0.35rem 0;
+    }
+    .section-desc {
+      color: $muted;
+      font-size: 0.9rem;
+      margin: 0 0 1.5rem 0;
+    }
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: $muted;
+    margin-bottom: 1rem;
+
+    input[type='text'],
+    input[type='tel'],
+    input[type='password'] {
+      padding: 0.75rem 1rem;
+      border: 1px solid $line;
+      border-radius: $radius;
+      font-size: 0.95rem;
+      color: $ink;
+      background: $canvas;
+      transition: all 0.2s;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        background: $surface;
+        box-shadow: 0 0 0 3px rgba(22, 78, 138, 0.1);
+      }
+    }
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .form-grid-3 {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .billing-toggle-wrap {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: $canvas;
+    border-radius: $radius;
+
+    .checkbox-label {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin: 0;
+
+      input {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  .form-actions {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+// ------------------------------------------
+// CHECKOUT ORDER REVIEW & CARDS
+// ------------------------------------------
+.checkout-review-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.checkout-review-card {
+  background: $surface;
+  border: 1px solid $line;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: $shadow-sm;
+
+  .card-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+    color: $primary-dark;
+    margin: 0 0 1rem 0;
+  }
+
+  .address-summary-text {
+    color: $ink;
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  .link-action-btn {
+    background: none;
+    border: none;
+    color: $primary;
+    font-weight: 600;
+    font-size: 0.88rem;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
+
+.checkout-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .checkout-item-compact-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .compact-img-wrap {
+      width: 54px;
+      height: 54px;
+      border-radius: $radius;
+      overflow: hidden;
+      background: $canvas;
+      flex-shrink: 0;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .compact-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+
+      .compact-title {
+        font-weight: 600;
+        color: $ink;
+        font-size: 0.95rem;
+      }
+      .compact-variant {
+        font-size: 0.82rem;
+        color: $muted;
+      }
+      .compact-qty {
+        font-size: 0.82rem;
+        color: $muted;
+      }
+    }
+
+    .compact-price {
+      font-weight: 700;
+      color: $primary-dark;
+      font-size: 1.05rem;
+    }
+  }
+}
+
+// ------------------------------------------
+// PAYMENT METHOD CONTAINER
+// ------------------------------------------
+.payment-method-container {
+  max-width: 650px;
+  margin: 0 auto;
+
+  .payment-options-list {
+    margin-bottom: 1.5rem;
+
+    .payment-option-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1.25rem;
+      border: 2px solid $primary-dark;
+      background: $canvas;
+      border-radius: $radius-lg;
+      cursor: pointer;
+
+      .payment-option-content {
+        flex: 1;
+
+        .payment-option-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.25rem;
+          color: $primary-dark;
+          font-size: 1rem;
+        }
+
+        .payment-option-sub {
+          font-size: 0.85rem;
+          color: $muted;
+        }
+      }
+    }
+  }
+
+  .mock-card-fields {
+    background: $canvas;
+    border: 1px solid $line;
+    border-radius: $radius-lg;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: $muted;
+      margin-bottom: 0.85rem;
+
+      input {
+        padding: 0.7rem 0.9rem;
+        border: 1px solid $line;
+        border-radius: 6px;
+        font-size: 0.92rem;
+        background: $surface;
+
+        &:focus {
+          outline: none;
+          border-color: $primary;
+        }
+      }
+    }
+  }
+
+  .payment-error-alert {
+    background: $error-light;
+    border: 1px solid #f8d7da;
+    color: $error;
+    padding: 0.85rem 1rem;
+    border-radius: $radius;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+}
+
+// ------------------------------------------
+// ORDER CONFIRMATION RECEIPT PAGE
+// ------------------------------------------
+.order-confirmation-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2.5rem 1rem 5rem;
+
+  .confirmation-hero-card {
+    background: $surface;
+    border: 1px solid $line;
+    border-radius: 20px;
+    padding: 2.5rem;
+    text-align: center;
+    box-shadow: $shadow-md;
+    margin-bottom: 2rem;
+
+    .success-icon-badge {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: $success-light;
+      color: $success;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-title {
+      font-size: 2.4rem;
+      color: $primary-dark;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .hero-subtitle {
+      color: $muted;
+      font-size: 1.05rem;
+      margin: 0 0 1.5rem 0;
+    }
+  }
+
+  .orders-receipt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .order-receipt-card {
+    background: $surface;
+    border: 1px solid $line;
+    border-radius: 16px;
+    padding: 1.75rem;
+
+    .receipt-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 1.25rem;
+
+      .order-num-tag {
+        font-family: monospace;
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: $primary-dark;
+      }
+    }
+  }
+}
+
+// ------------------------------------------
+// RESPONSIVE ADJUSTMENTS
+// ------------------------------------------
+@media (max-width: 768px) {
+  .checkout-stepper {
+    .stepper-item {
+      .stepper-label {
+        display: none;
+      }
+    }
+  }
+
+  .checkout-address-form {
+    padding: 1.25rem;
+
+    .form-grid,
+    .form-grid-3 {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+  }
+}
